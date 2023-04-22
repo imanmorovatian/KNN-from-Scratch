@@ -8,11 +8,12 @@ class KNearestNeighbors:
     1)fit and 2)predict
     '''
 
-    def __init__(self, k, distance_metric='euclidean', weights="uniform"):
+    def __init__(self, k, distance_metric='euclidean', weights="uniform", classification=True):
 
         self.k = k
         self.distance_metric = distance_metric
         self.weights = weights
+        self.classification = classification
         
         
     def fit(self, X, y):           
@@ -33,7 +34,7 @@ class KNearestNeighbors:
 
         '''This function is a helper one for predict function to compute cosine distance between train and test sets'''
         def cosine(X_test):
-            dot_product = np.multiply(self.X_train, np.transpose(X_test))
+            dot_product = np.matmul(self.X_train, np.transpose(X_test))
             X_test_norm = np.sqrt(np.sum(X_test**2, axis=1))
             return 1 - abs(dot_product / self.X_train_norm / X_test_norm)
     
@@ -69,17 +70,28 @@ class KNearestNeighbors:
             distances = manhattan(X_test)
             
         knn = np.transpose(np.argsort(distances, axis=0)[:self.k,:])
-        knn_labels = self.y_train[knn]
+        targets = self.y_train[knn]
         
         if self.weights == 'uniform':
-            prediction = [majority_voting(knn_labels[i]) for i in range(len(knn))]
+            if self.classification:
+                classes = [majority_voting(targets[i]) for i in range(len(knn))]
+            else:
+                regressions = [np.mean(targets[i]) for i in range(len(knn))]
             
         elif self.weights == 'distance':
             weights = 1 / ( np.take_along_axis(distances, np.transpose(knn), axis=0)+1e-5 )
             weights = np.transpose(weights)
-            prediction = [weighted_majority_voting(knn_labels[i], weights[i]) for i in range(len(knn))]
+
+            if self.classification:
+                classes = [weighted_majority_voting(targets[i], weights[i]) for i in range(len(knn))]
+            else:
+                regressions = [np.average(targets[i], weights=weights[i]) for i in range(len(knn))]
         
-        return prediction
+
+        if self.classification:
+            return classes
+        else:
+            return regressions
 
 
 
